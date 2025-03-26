@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cazadores de la Selva</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #2A4A2A; /* Slightly darker green */ }
+        canvas { display: block; }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: 'Arial Black', Gadget, sans-serif; /* Chunkier font */
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 1.3em;
+             text-shadow: 1px 1px 2px black; /* Add text shadow */
+        }
+        #ui div { margin-bottom: 6px; }
+        #message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #FFD700; /* Gold color */
+            font-size: 3.5em;
+            font-family: 'Arial Black', Gadget, sans-serif;
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border: 3px solid #8B4513; /* Brown border */
+            border-radius: 15px;
+            display: none; /* Hidden by default */
+             text-shadow: 2px 2px 4px black;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            font-family: 'Arial Black', Gadget, sans-serif;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 1.0em;
+            text-shadow: 1px 1px 2px black;
+            min-width: 200px;
+        }
+        #controls h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-align: center;
+            color: #FFD700;
+        }
+        #controls div {
+            margin-bottom: 8px;
+        }
+        .key {
+            display: inline-block;
+            background-color: #555;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid #AAA;
+            font-size: 0.9em;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            margin: 0 3px;
+        }
+        #legend {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: white;
+            font-family: 'Arial Black', Gadget, sans-serif;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            text-shadow: 1px 1px 2px black;
+            min-width: 200px;
+        }
+        #legend h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-align: center;
+            color: #FFD700;
+        }
+        #legend div {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+        .legend-icon {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 50%;
+        }
+        .hunter {
+            background-color: #D2B48C;
+            position: relative;
+        }
+        .hunter:after {
+            content: "";
+            position: absolute;
+            width: 12px;
+            height: 6px;
+            background-color: #222222;
+            top: 7px;
+            right: -10px;
+            border-radius: 2px;
+        }
+        .enemy {
+            background-color: #CC5500;
+            border-radius: 50%;
+            position: relative;
+        }
+        .enemy:before, .enemy:after {
+            content: "";
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background-color: #FFFF00;
+            border-radius: 50%;
+            top: 4px;
+        }
+        .enemy:before {
+            left: 2px;
+        }
+        .enemy:after {
+            right: 2px;
+        }
+        .ammo {
+            width: 8px;
+            height: 18px;
+            border-radius: 1px;
+            background: linear-gradient(to top, #D4AF37 30%, #CC0000 30%);
+        }
+        .rock {
+            background-color: #696969;
+            border-radius: 4px;
+            width: 22px;
+            height: 18px;
+            transform: rotate(5deg);
+            position: relative;
+        }
+        .rock:after {
+            content: "";
+            position: absolute;
+            width: 10px;
+            height: 8px;
+            background-color: #A9A9A9;
+            border-radius: 3px;
+            top: 2px;
+            left: 6px;
+        }
+        .exit {
+            background-color: #005FFF;
+            width: 24px;
+            height: 12px;
+            border-radius: 2px;
+            opacity: 0.8;
+        }
+        #damage-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 0, 0, 0.3);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 10;
+        }
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+            animation-iteration-count: 4;
+        }
+        @keyframes shake {
+            10%, 90% {
+                transform: translate3d(-2px, 0, 0);
+            }
+            20%, 80% {
+                transform: translate3d(4px, 0, 0);
+            }
+            30%, 50%, 70% {
+                transform: translate3d(-6px, 0, 0);
+            }
+            40%, 60% {
+                transform: translate3d(6px, 0, 0);
+            }
+        }
+    </style>
+    
+    <!-- Preload Audio Files -->
+    <audio id="audio-disparo" src="sounds/New Recording.m4a" preload="auto"></audio>
+    <audio id="audio-danio" src="sounds/Danio_al_Jugador.m4a" preload="auto"></audio>
+    <audio id="audio-recarga" src="sounds/Recarga.m4a" preload="auto"></audio>
+    <audio id="audio-colision" src="sounds/Colision_con_Rocas.m4a" preload="auto"></audio>
+    <audio id="audio-enemigo" src="sounds/Enemigo_Eliminado.m4a" preload="auto"></audio>
+    <audio id="audio-municion" src="sounds/Recoger_Municion.m4a" preload="auto"></audio>
+    <audio id="audio-nivel" src="sounds/Nivel_Completado.m4a" preload="auto"></audio>
+    <audio id="audio-gameover" src="sounds/Game_Over.m4a" preload="auto"></audio>
+    <audio id="audio-pasos" src="sounds/Pasos_del_Jugador.m4a" preload="auto"></audio>
+</head>
+<body>
+    <div id="ui">
+        <div id="score">Puntos: 0</div>
+        <div id="lives">Vidas: 3</div>
+        <div id="shots">Disparos: 3</div>
+        <div id="reloads">Recargas: 0</div>
+        <div id="level">Nivel: 1</div>
+    </div>
+    <div id="message"></div>
+    <div id="controls">
+        <h3>Controles</h3>
+        <div><span class="key">↑</span> <span class="key">↓</span> Moverse</div>
+        <div><span class="key">←</span> <span class="key">→</span> Rotar</div>
+        <div><span class="key">Espacio</span> Disparar</div>
+        <div><span class="key">R</span> Recargar</div>
+    </div>
+    
+    <div id="legend">
+        <h3>Objetos</h3>
+        <div><span class="legend-icon hunter"></span> Cazador (tú)</div>
+        <div><span class="legend-icon enemy"></span> Enemigo</div>
+        <div><span class="legend-icon ammo"></span> Munición</div>
+        <div><span class="legend-icon rock"></span> Roca (obstáculo)</div>
+        <div><span class="legend-icon exit"></span> Salida</div>
+    </div>
+    
+    <div id="damage-overlay"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // --- Constants ---
+        const MAP_SIZE = 22; // Increased slightly to give border space
+        const PLAY_AREA_SIZE = 20; // Actual gameplay area
+        const MAP_OFFSET = (MAP_SIZE - PLAY_AREA_SIZE) / 2; // = 1.0
+        const PLAYER_RADIUS = 0.4;
+        const ENEMY_RADIUS = 0.45; // Slightly larger enemy
+        const AMMO_RADIUS = 0.2;
+        const ROCK_SIZE = 1.2; // Slightly larger rocks
+        const TREE_TRUNK_WIDTH = 0.3;
+        const TREE_TRUNK_HEIGHT = 0.8;
+        const TREE_LEAVES_RADIUS = 0.9; // Larger leaves canopy
+        const EXIT_WIDTH = 1.5;
+        const EXIT_HEIGHT = 0.5;
+        const BULLET_RADIUS = 0.1;
+        const BULLET_SPEED = 18; // Faster bullets
+        const PLAYER_SPEED = 2.5; // Adjusted speed
+        const PLAYER_ROTATION_SPEED = Math.PI * 1.7; // Slightly faster rotation
+        const ENEMY_SPEED = 3; // Adjusted speed
+        const MAX_SHOTS = 3;
+        const MAX_RELOADS = 5;
+        const MAX_LIVES = 5;
+        const ENEMY_SPAWN_INTERVAL_MIN = 2500; // ms (faster spawning)
+        const ENEMY_SPAWN_INTERVAL_MAX = 5000; // ms
+        const MAX_ENEMIES_PER_LEVEL_FACTOR = 1.6;
+        const BORDER_THICKNESS = MAP_OFFSET; // Thickness matches offset
+        const BORDER_COLOR = 0x4A2E1C; // Darker brown for border
+        const GROUND_COLOR = 0x6B8E23; // Olive Drab / Earthy green
+
+        // --- Game State ---
+        let scene, camera, renderer, clock;
+        let player, playerVelocity = new THREE.Vector3();
+        let score = 0;
+        let lives = 3;
+        let currentShots = MAX_SHOTS;
+        let reloads = 0;
+        let level = 1;
+        let gameState = 'playing'; // 'playing', 'gameOver', 'levelComplete'
+        let lastShotTime = 0;
+        let shotCooldown = 180; // ms (slightly faster shooting)
+        let nextEnemySpawnTime = 0;
+        let maxEnemiesThisLevel = 0;
+
+        const keys = {
+            ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
+            Space: false, KeyR: false
+        };
+        let spacePressedLastFrame = false;
+        let rPressedLastFrame = false;
+
+        // --- Game Objects Arrays ---
+        let obstacles = []; // ROCKS ONLY
+        let trees = []; // Visual only, groups
+        let enemies = []; // Groups
+        let ammunition = []; // Meshes
+        let bullets = []; // Meshes
+        let exits = []; // Meshes
+
+        // --- UI Elements ---
+        const scoreUI = document.getElementById('score');
+        const livesUI = document.getElementById('lives');
+        const shotsUI = document.getElementById('shots');
+        const reloadsUI = document.getElementById('reloads');
+        const levelUI = document.getElementById('level');
+        const messageUI = document.getElementById('message');
+
+        // --- Audio ---
+        let audioElements = {};
+        let audioInitialized = false;
+        
+        // Función para inicializar el audio
+        function initAudio() {
+            try {
+                // Obtener referencias a los elementos de audio precargados
+                audioElements = {
+                    'Disparo': document.getElementById('audio-disparo'),
+                    'Danio_al_Jugador': document.getElementById('audio-danio'),
+                    'Recarga': document.getElementById('audio-recarga'),
+                    'Colision_con_Rocas': document.getElementById('audio-colision'),
+                    'Enemigo_Eliminado': document.getElementById('audio-enemigo'),
+                    'Recoger_Municion': document.getElementById('audio-municion'),
+                    'Nivel_Completado': document.getElementById('audio-nivel'),
+                    'Game_Over': document.getElementById('audio-gameover'),
+                    'Pasos_del_Jugador': document.getElementById('audio-pasos')
+                };
+                
+                audioInitialized = true;
+                console.log("Audio inicializado con éxito");
+            } catch (e) {
+                console.error('Error inicializando audio:', e);
+            }
+        }
+        
+        // Función para reproducir sonidos
+        function playSound(soundName, volume = 1.0) {
+            if (!audioInitialized || !audioElements[soundName]) return;
+            
+            try {
+                const audio = audioElements[soundName];
+                audio.volume = volume;
+                audio.currentTime = 0; // Reiniciar para permitir reproducción repetida
+                audio.play();
+            } catch (e) {
+                console.error(`Error reproduciendo sonido ${soundName}:`, e);
+            }
+        }
+        
+        // --- Damage Effect ---
+        const damageOverlay = document.getElementById('damage-overlay');
+        function showDamageEffect() {
+            // Mostrar overlay rojo
+            damageOverlay.style.opacity = '1';
+            // Añadir efecto de temblor a toda la página
+            document.body.classList.add('shake');
+            
+            // Reproducir sonido de daño
+            playSound('Danio_al_Jugador');
+            
+            // Eliminar efectos después de 2 segundos
+            setTimeout(() => {
+                damageOverlay.style.opacity = '0';
+                document.body.classList.remove('shake');
+            }, 2000);
+        }
+
+        // --- Initialization ---
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(GROUND_COLOR); // Use ground color
+
+            // Clock
+            clock = new THREE.Clock();
+
+            // Camera
+            const aspect = window.innerWidth / window.innerHeight;
+            // Adjust view size to fit the slightly larger map + border
+            const viewSize = MAP_SIZE * 1.1;
+            camera = new THREE.OrthographicCamera(
+                -viewSize * aspect / 2, viewSize * aspect / 2,
+                viewSize / 2, -viewSize / 2,
+                0.1, 100
+            );
+            // Center camera on the MAP_SIZE
+            camera.position.set(MAP_SIZE / 2, MAP_SIZE / 2, 10);
+            camera.lookAt(MAP_SIZE / 2, MAP_SIZE / 2, 0);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Create map border first (visually behind other objects)
+            createMapBorder();
+
+            // Player - create a hunter character
+            player = createPlayerCharacter();
+            scene.add(player);
+
+            // Initial Map Generation
+            generateMap();
+            resetPlayerState(); // Position player after map gen
+
+            // Event Listeners
+            window.addEventListener('keydown', onKeyDown);
+            window.addEventListener('keyup', onKeyUp);
+            window.addEventListener('resize', onWindowResize);
+
+            // Inicializar audio inmediatamente
+            initAudio();
+
+            // Start Game Loop
+            animate();
+        }
+
+        // --- Create Player Character ---
+        function createPlayerCharacter() {
+            const playerGroup = new THREE.Group();
+
+            // Body (Circle) - Tan color like image
+            const bodyRadius = PLAYER_RADIUS * 0.7;
+            const bodyGeometry = new THREE.CircleGeometry(bodyRadius, 16);
+            const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0xD2B48C }); // Tan
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            playerGroup.add(body);
+
+            // Head (Small Circle) - Brown color
+             const headRadius = PLAYER_RADIUS * 0.4;
+             const headGeometry = new THREE.CircleGeometry(headRadius, 12);
+             const headMaterial = new THREE.MeshBasicMaterial({ color: 0x8B4513 }); // Brown
+             const head = new THREE.Mesh(headGeometry, headMaterial);
+             head.position.y = bodyRadius * 0.6; // Position slightly above body center
+             head.position.z = 0.01;
+             playerGroup.add(head);
+
+
+            // Gun (Rectangle) - Dark Gray/Black
+            const gunLength = PLAYER_RADIUS * 1.5;
+            const gunWidth = PLAYER_RADIUS * 0.3;
+            const gunGeometry = new THREE.PlaneGeometry(gunLength, gunWidth);
+            const gunMaterial = new THREE.MeshBasicMaterial({ color: 0x222222 }); // Very dark gray
+            const gun = new THREE.Mesh(gunGeometry, gunMaterial);
+            // Position gun extending forward from the body center
+            gun.position.x = gunLength / 2;
+            gun.position.z = 0.02; // Slightly above head
+            playerGroup.add(gun);
+
+            playerGroup.userData.radius = PLAYER_RADIUS; // Keep original collision radius
+            playerGroup.rotation.order = 'ZYX';
+            return playerGroup;
+        }
+
+
+        // --- Create Map Border ---
+        function createMapBorder() {
+            const borderGeometryH = new THREE.BoxGeometry(MAP_SIZE, BORDER_THICKNESS, 0.2);
+            const borderGeometryV = new THREE.BoxGeometry(BORDER_THICKNESS, MAP_SIZE - 2 * BORDER_THICKNESS, 0.2); // Adjust vertical size
+            const borderMaterial = new THREE.MeshBasicMaterial({ color: BORDER_COLOR });
+
+            // Top
+            const topBorder = new THREE.Mesh(borderGeometryH, borderMaterial);
+            topBorder.position.set(MAP_SIZE / 2, MAP_SIZE - BORDER_THICKNESS / 2, 0);
+            scene.add(topBorder);
+
+            // Bottom
+            const bottomBorder = new THREE.Mesh(borderGeometryH, borderMaterial);
+            bottomBorder.position.set(MAP_SIZE / 2, BORDER_THICKNESS / 2, 0);
+            scene.add(bottomBorder);
+
+            // Left
+            const leftBorder = new THREE.Mesh(borderGeometryV, borderMaterial);
+            leftBorder.position.set(BORDER_THICKNESS / 2, MAP_SIZE / 2, 0);
+            scene.add(leftBorder);
+
+            // Right
+            const rightBorder = new THREE.Mesh(borderGeometryV, borderMaterial);
+            rightBorder.position.set(MAP_SIZE - BORDER_THICKNESS / 2, MAP_SIZE / 2, 0);
+            scene.add(rightBorder);
+        }
+
+        // --- Helper Functions for SVG-style shapes ---
+        function createBushShape(radius, detail = 8) {
+            const shape = new THREE.Shape();
+            const numPoints = detail * 2; // More points for smoother bumps
+            const baseRadius = radius * 0.8;
+            const bumpiness = radius * 0.25;
+
+            for (let i = 0; i <= numPoints; i++) {
+                const angle = (i / numPoints) * Math.PI * 2;
+                // Use sine wave for smoother bumps
+                const r = baseRadius + Math.sin(angle * detail) * bumpiness * (0.7 + Math.random() * 0.6);
+                const x = Math.cos(angle) * r;
+                const y = Math.sin(angle) * r;
+
+                if (i === 0) {
+                    shape.moveTo(x, y);
+                } else {
+                    // Use quadratic curves for smoother connections
+                    const prevAngle = ((i - 1) / numPoints) * Math.PI * 2;
+                    const prevR = baseRadius + Math.sin(prevAngle * detail) * bumpiness * (0.7 + Math.random() * 0.6);
+                    const prevX = Math.cos(prevAngle) * prevR;
+                    const prevY = Math.sin(prevAngle) * prevR;
+                    const cpX = (prevX + x)/2 + (Math.random()-0.5) * bumpiness*0.5; // Control point randomization
+                    const cpY = (prevY + y)/2 + (Math.random()-0.5) * bumpiness*0.5;
+                    shape.quadraticCurveTo(cpX, cpY, x, y);
+                    // shape.lineTo(x,y); // Simpler alternative
+                }
+            }
+            shape.closePath();
+            return shape;
+        }
+
+        function createRockShape(size) {
+            const shape = new THREE.Shape();
+            const numPoints = 8 + Math.floor(Math.random() * 5); // 8-12 points
+            const baseSize = size * 0.45;
+
+            for (let i = 0; i < numPoints; i++) {
+                const angle = (i / numPoints) * Math.PI * 2;
+                const variation = 0.7 + Math.random() * 0.6; // More jagged variation
+                const x = Math.cos(angle + Math.random()*0.2 - 0.1) * baseSize * variation; // Angle jitter
+                const y = Math.sin(angle + Math.random()*0.2 - 0.1) * baseSize * variation;
+
+                if (i === 0) {
+                    shape.moveTo(x, y);
+                } else {
+                    shape.lineTo(x, y);
+                }
+            }
+            shape.closePath();
+            return shape;
+        }
+
+        function createDetailedTree(radius) {
+            const treeGroup = new THREE.Group();
+
+            // 1. Base Bush Shape (darker green)
+            const baseBushShape = createBushShape(radius, 10);
+            const baseBushGeometry = new THREE.ShapeGeometry(baseBushShape);
+            const baseBushMaterial = new THREE.MeshBasicMaterial({ color: 0x006400 }); // DarkGreen
+            const baseBush = new THREE.Mesh(baseBushGeometry, baseBushMaterial);
+            baseBush.position.z = 0.05; // Base layer
+            treeGroup.add(baseBush);
+
+            // 2. Mid Layer Bush (medium green)
+             const midRadius = radius * 0.85;
+             const midBushShape = createBushShape(midRadius, 8);
+             const midBushGeometry = new THREE.ShapeGeometry(midBushShape);
+             const midBushMaterial = new THREE.MeshBasicMaterial({ color: 0x228B22 }); // ForestGreen
+             const midBush = new THREE.Mesh(midBushGeometry, midBushMaterial);
+             midBush.position.z = 0.10; // Middle layer
+             midBush.rotation.z = Math.random() * 0.5; // Slight rotation
+             treeGroup.add(midBush);
+
+             // 3. Top Layer Bush (lighter green)
+             const topRadius = radius * 0.65;
+             const topBushShape = createBushShape(topRadius, 6);
+             const topBushGeometry = new THREE.ShapeGeometry(topBushShape);
+             const topBushMaterial = new THREE.MeshBasicMaterial({ color: 0x55AE3A }); // Lighter Olive Green
+             const topBush = new THREE.Mesh(topBushGeometry, topBushMaterial);
+             topBush.position.z = 0.15; // Top layer
+             topBush.rotation.z = Math.random() * 1.0; // More rotation
+             treeGroup.add(topBush);
+
+            // Add simple trunk (mostly hidden)
+            const trunkGeometry = new THREE.CylinderGeometry(TREE_TRUNK_WIDTH * 0.5, TREE_TRUNK_WIDTH * 0.7, TREE_TRUNK_HEIGHT, 8);
+            const trunkMaterial = new THREE.MeshBasicMaterial({ color: 0x5C3317 }); // Darker Brown
+            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+            trunk.position.z = TREE_TRUNK_HEIGHT / 2 - 0.1; // Positioned lower
+            trunk.rotation.x = Math.PI / 2; // Lay flat along Z axis conceptually for top-down view cylinder
+            treeGroup.add(trunk); // Add but don't add to obstacles
+
+            treeGroup.userData.radius = radius; // Use full radius for spawn checks
+            treeGroup.userData.type = 'tree';
+            return treeGroup;
+        }
+
+        function createDetailedRock(size) {
+            const rockGroup = new THREE.Group();
+
+            // 1. Base Rock Shape (darker gray/brown)
+            const baseRockShape = createRockShape(size);
+            const baseRockGeometry = new THREE.ShapeGeometry(baseRockShape);
+            const baseRockMaterial = new THREE.MeshBasicMaterial({ color: 0x696969 }); // DimGray
+            const baseRock = new THREE.Mesh(baseRockGeometry, baseRockMaterial);
+            baseRock.rotation.z = Math.random() * Math.PI * 2;
+            baseRock.position.z = 0.05;
+            rockGroup.add(baseRock);
+
+            // 2. Detail/Highlight Shapes (lighter gray)
+            const numDetails = Math.floor(Math.random() * 3) + 2; // 2-4 details
+            for (let i = 0; i < numDetails; i++) {
+                const detailSize = size * (0.3 + Math.random() * 0.3); // Smaller details
+                const detailShape = createRockShape(detailSize);
+                const detailGeometry = new THREE.ShapeGeometry(detailShape);
+                const detailMaterial = new THREE.MeshBasicMaterial({ color: 0xA9A9A9 }); // DarkGray (lighter)
+                const detail = new THREE.Mesh(detailGeometry, detailMaterial);
+
+                // Position randomly on top of the base rock
+                detail.position.x = (Math.random() - 0.5) * size * 0.3;
+                detail.position.y = (Math.random() - 0.5) * size * 0.3;
+                detail.position.z = 0.10 + Math.random() * 0.02; // Slightly above base
+                detail.rotation.z = Math.random() * Math.PI * 2;
+                rockGroup.add(detail);
+            }
+
+            // Add userData for collision
+            rockGroup.userData = {
+                radius: size * 0.5, // Approximate radius for collision
+                type: 'rock'
+            };
+            return rockGroup;
+        }
+
+        // --- Map Generation ---
+        function generateMap() {
+            // Clear previous map objects
+             // Iterate backwards when removing from arrays
+             for (let i = obstacles.length - 1; i >= 0; i--) scene.remove(obstacles[i]);
+             for (let i = trees.length - 1; i >= 0; i--) scene.remove(trees[i]);
+             for (let i = enemies.length - 1; i >= 0; i--) scene.remove(enemies[i]);
+             for (let i = ammunition.length - 1; i >= 0; i--) scene.remove(ammunition[i]);
+             for (let i = bullets.length - 1; i >= 0; i--) scene.remove(bullets[i]);
+             for (let i = exits.length - 1; i >= 0; i--) scene.remove(exits[i]);
+
+            obstacles = [];
+            trees = [];
+            enemies = [];
+            ammunition = [];
+            bullets = [];
+            exits = [];
+
+            const safeZoneRadius = 3.0; // Larger safe zone near entrance
+             const entrancePos = new THREE.Vector2(MAP_SIZE / 2, MAP_OFFSET + PLAYER_RADIUS);
+
+            // --- Place Exits ---
+            const potentialExitPositions = [
+                { x: MAP_SIZE / 2, y: MAP_SIZE - MAP_OFFSET - EXIT_HEIGHT / 2, rotation: 0 }, // Top center
+                { x: MAP_OFFSET + EXIT_HEIGHT / 2, y: MAP_SIZE / 2, rotation: Math.PI / 2 }, // Left center
+                { x: MAP_SIZE - MAP_OFFSET - EXIT_HEIGHT / 2, y: MAP_SIZE / 2, rotation: Math.PI / 2 }  // Right center
+            ];
+            const numExits = Math.min(Math.floor(Math.random() * 2) + 1, potentialExitPositions.length); // 1-2 exits initially, maybe add level factor later
+            shuffleArray(potentialExitPositions);
+
+            for (let i = 0; i < numExits; i++) {
+                const posData = potentialExitPositions[i];
+                const exitGeometry = new THREE.PlaneGeometry(EXIT_WIDTH, EXIT_HEIGHT); // Use PlaneGeometry
+                const exitMaterial = new THREE.MeshBasicMaterial({ color: 0x005FFF, transparent: true, opacity: 0.8 }); // Brighter Blue, slightly transparent
+                const exit = new THREE.Mesh(exitGeometry, exitMaterial);
+                exit.position.set(posData.x, posData.y, 0.01); // Slightly above ground
+                exit.rotation.z = posData.rotation;
+                 // Store correct dimensions for bounding box
+                 exit.userData.width = (posData.rotation === 0) ? EXIT_WIDTH : EXIT_HEIGHT;
+                 exit.userData.height = (posData.rotation === 0) ? EXIT_HEIGHT : EXIT_WIDTH;
+                scene.add(exit);
+                exits.push(exit);
+            }
+
+            // --- Place Rocks (Obstacles) ---
+            const numRocks = Math.floor(Math.random() * 8) + 4 + Math.floor(level/2); // 4-11 + level bonus
+            for (let i = 0; i < numRocks; i++) {
+                let pos;
+                let validPosition = false;
+                let tries = 0;
+                 while(!validPosition && tries < 50) {
+                    pos = getRandomPlayablePosition(ROCK_SIZE / 2);
+                    const distToEntrance = pos.distanceTo(entrancePos);
+                    if (distToEntrance > safeZoneRadius &&
+                        !isOverlapping(pos, ROCK_SIZE / 2, exits.map(e=>e.position), EXIT_WIDTH / 2) && // Approximate exit check
+                        !isOverlapping(pos, ROCK_SIZE / 2, obstacles.map(o => o.position), ROCK_SIZE / 2)) {
+                        validPosition = true;
+                    }
+                    tries++;
+                }
+                 if (!validPosition) continue; // Skip if couldn't place
+
+                const rockGroup = createDetailedRock(ROCK_SIZE);
+                rockGroup.position.set(pos.x, pos.y, 0);
+                scene.add(rockGroup);
+                obstacles.push(rockGroup); // Add the group to obstacles
+            }
+
+            // --- Place Trees (Visuals) ---
+             const numTrees = Math.floor(Math.random() * 7) + 5 + level; // 5-11 + level
+            for (let i = 0; i < numTrees; i++) {
+                 let pos;
+                let validPosition = false;
+                 let tries = 0;
+                 while(!validPosition && tries < 50) {
+                    pos = getRandomPlayablePosition(TREE_LEAVES_RADIUS);
+                    const distToEntrance = pos.distanceTo(entrancePos);
+                    if (distToEntrance > safeZoneRadius * 0.8 && // Trees can be a bit closer
+                        !isOverlapping(pos, TREE_LEAVES_RADIUS, exits.map(e=>e.position), EXIT_WIDTH / 2) &&
+                        !isOverlapping(pos, TREE_LEAVES_RADIUS * 0.5, obstacles.map(o => o.position), ROCK_SIZE / 2) && // Less strict overlap check with rocks
+                         !isOverlapping(pos, TREE_LEAVES_RADIUS, trees.map(t => t.position), TREE_LEAVES_RADIUS)) {
+                         validPosition = true;
+                     }
+                     tries++;
+                 }
+                 if (!validPosition) continue; // Skip if couldn't place
+
+                const treeGroup = createDetailedTree(TREE_LEAVES_RADIUS);
+                treeGroup.position.set(pos.x, pos.y, 0);
+                scene.add(treeGroup);
+                trees.push(treeGroup); // Add to trees array for spawning
+            }
+
+            // --- Place Ammunition ---
+            const numAmmunition = Math.floor(Math.random() * 3) + 2 + Math.floor(level/3); // 2-4 + level bonus
+            for (let i = 0; i < numAmmunition; i++) {
+                 let pos;
+                 let validPosition = false;
+                 let tries = 0;
+                 while(!validPosition && tries < 50) {
+                    pos = getRandomPlayablePosition(AMMO_RADIUS);
+                    if (!isOverlapping(pos, AMMO_RADIUS * 2, obstacles.map(o=>o.position), ROCK_SIZE/2) && // Check wider area around ammo
+                         !isOverlapping(pos, AMMO_RADIUS, ammunition.map(a=>a.position), AMMO_RADIUS*3)) { // Space out ammo
+                         validPosition = true;
+                    }
+                    tries++;
+                 }
+                 if (!validPosition) continue; // Skip if couldn't place
+
+                // Simple cylinder for ammo pickup (like shotgun shell)
+                const ammoGroup = new THREE.Group();
+                
+                // Brass base of shotgun shell
+                const baseGeometry = new THREE.CylinderGeometry(AMMO_RADIUS * 0.8, AMMO_RADIUS * 0.8, AMMO_RADIUS * 0.7, 12);
+                const baseMaterial = new THREE.MeshBasicMaterial({ color: 0xD4AF37 }); // Brass color
+                const base = new THREE.Mesh(baseGeometry, baseMaterial);
+                base.position.y = -AMMO_RADIUS * 0.9; // Position at bottom of shell
+                ammoGroup.add(base);
+                
+                // Red body of shotgun shell
+                const bodyGeometry = new THREE.CylinderGeometry(AMMO_RADIUS * 0.75, AMMO_RADIUS * 0.75, AMMO_RADIUS * 1.8, 12);
+                const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0xCC0000 }); // Red color
+                const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                body.position.y = AMMO_RADIUS * 0.05; // Position above base
+                ammoGroup.add(body);
+                
+                // Position and orient the ammo group
+                ammoGroup.rotation.x = Math.PI / 2; // Stand upright
+                ammoGroup.position.set(pos.x, pos.y, AMMO_RADIUS * 1.25);
+                ammoGroup.userData.radius = AMMO_RADIUS * 1.5; // Larger pickup radius
+                scene.add(ammoGroup);
+                ammunition.push(ammoGroup);
+            }
+
+            // Reset enemy spawn timer and count
+            maxEnemiesThisLevel = Math.ceil(level * MAX_ENEMIES_PER_LEVEL_FACTOR);
+            scheduleNextEnemySpawn();
+        }
+
+        // --- Helper: Get Random Position within Playable Area ---
+        function getRandomPlayablePosition(buffer = 0) {
+            const x = MAP_OFFSET + buffer + Math.random() * (PLAY_AREA_SIZE - buffer * 2);
+            const y = MAP_OFFSET + buffer + Math.random() * (PLAY_AREA_SIZE - buffer * 2);
+            return new THREE.Vector2(x, y);
+        }
+
+        // --- Helper: Check Overlap ---
+        function isOverlapping(pos, radius, checkPositions, checkRadius) {
+             for (const itemPos of checkPositions) {
+                const minDist = radius + checkRadius;
+                if (pos.distanceTo(itemPos) < minDist) {
+                    return true;
+                 }
+             }
+             return false;
+         }
+
+        // --- Helper: Shuffle Array ---
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+
+        // --- Reset Player State ---
+        function resetPlayerState() {
+            // Start near bottom center within playable area
+            player.position.set(MAP_SIZE / 2, MAP_OFFSET + PLAYER_RADIUS * 1.5, 0);
+            player.rotation.z = Math.PI / 2; // Face upwards
+            playerVelocity.set(0, 0, 0);
+        }
+
+        // --- Event Handlers ---
+        function onKeyDown(event) {
+            // Initialize Audio on first keydown
+            if (!audioInitialized) {
+                initAudio();
+            }
+
+            if (keys.hasOwnProperty(event.code)) {
+                keys[event.code] = true;
+            }
+        }
+
+        function onKeyUp(event) {
+            if (keys.hasOwnProperty(event.code)) {
+                keys[event.code] = false;
+            }
+        }
+
+        function onWindowResize() {
+            const aspect = window.innerWidth / window.innerHeight;
+             const viewSize = MAP_SIZE * 1.1;
+            camera.left = -viewSize * aspect / 2;
+            camera.right = viewSize * aspect / 2;
+            camera.top = viewSize / 2;
+            camera.bottom = -viewSize / 2;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Handle Player Input ---
+        function handlePlayerInput(delta) {
+            if (!player) return;
+
+            const now = performance.now();
+            let playerMoved = false;
+            
+            // Movement in direction of player rotation
+            let moveDirection = 0;
+            if (keys.ArrowUp) {
+                moveDirection = 1;
+                playerMoved = true;
+            }
+            if (keys.ArrowDown) {
+                moveDirection = -1;
+                playerMoved = true;
+            }
+
+            // Rotation
+            if (keys.ArrowLeft) player.rotation.z += PLAYER_ROTATION_SPEED * delta;
+            if (keys.ArrowRight) player.rotation.z -= PLAYER_ROTATION_SPEED * delta;
+            
+            // Calculate movement vector based on rotation
+            if (moveDirection !== 0) {
+                const moveX = Math.cos(player.rotation.z) * moveDirection * PLAYER_SPEED * delta;
+                const moveY = Math.sin(player.rotation.z) * moveDirection * PLAYER_SPEED * delta;
+                playerVelocity.set(moveX, moveY, 0);
+            } else {
+                // Slow down if not moving
+                playerVelocity.multiplyScalar(0.9);
+            }
+            
+            // Sistema de reproducción de sonidos de pasos
+            if (playerMoved) {
+                // Evitar que los pasos se superpongan demasiado
+                if (!player.userData.lastFootstep || now - player.userData.lastFootstep > 300) {
+                    playSound('Pasos_del_Jugador', 0.3);
+                    player.userData.lastFootstep = now;
+                }
+            }
+
+            // Apply movement
+            if (playerVelocity.lengthSq() > 0.01) {
+                const nextPos = player.position.clone().add(playerVelocity);
+                
+                // Check bounds
+                const minX = MAP_OFFSET + PLAYER_RADIUS;
+                const maxX = MAP_SIZE - MAP_OFFSET - PLAYER_RADIUS;
+                const minY = MAP_OFFSET + PLAYER_RADIUS;
+                const maxY = MAP_SIZE - MAP_OFFSET - PLAYER_RADIUS;
+                
+                if (nextPos.x < minX) nextPos.x = minX;
+                if (nextPos.x > maxX) nextPos.x = maxX;
+                if (nextPos.y < minY) nextPos.y = minY;
+                if (nextPos.y > maxY) nextPos.y = maxY;
+
+                // Check collision with obstacles - only with rocks
+                if (!checkCollision(nextPos, PLAYER_RADIUS, obstacles)) {
+                    player.position.copy(nextPos);
+                } else {
+                    // If blocked, try sliding along walls
+                    const slideX = player.position.clone();
+                    slideX.x = nextPos.x;
+                    
+                    if (!checkCollision(slideX, PLAYER_RADIUS, obstacles)) {
+                        player.position.copy(slideX);
+                    } else {
+                        const slideY = player.position.clone();
+                        slideY.y = nextPos.y;
+                        
+                        if (!checkCollision(slideY, PLAYER_RADIUS, obstacles)) {
+                            player.position.copy(slideY);
+                        }
+                    }
+                }
+            }
+
+            // Shooting
+            if (keys.Space && !spacePressedLastFrame && currentShots > 0 && now > lastShotTime + shotCooldown) {
+                shootBullet();
+                playSound('Disparo');
+                currentShots--;
+                lastShotTime = now;
+                updateUI();
+            }
+            spacePressedLastFrame = keys.Space;
+
+            // Reload with R key
+            if (keys.KeyR && !rPressedLastFrame && reloads > 0 && currentShots < MAX_SHOTS) {
+                currentShots = MAX_SHOTS;
+                reloads--;
+                playSound('Recarga'); // Reproducir sonido de recarga
+                updateUI();
+            }
+            rPressedLastFrame = keys.KeyR;
+        }
+
+        function shootBullet() {
+             // Use a thin rectangle for the bullet visual
+            const bulletLength = 0.3;
+            const bulletWidth = 0.05;
+            const bulletGeometry = new THREE.PlaneGeometry(bulletLength, bulletWidth);
+            const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFF99 }); // Pale Yellow
+            const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+
+            // Align bullet rotation with player rotation
+            bullet.rotation.z = player.rotation.z;
+
+            // Start slightly in front of the player's gun tip
+             // Calculate gun tip position relative to player center
+            const gunTipOffsetX = Math.cos(player.rotation.z) * (PLAYER_RADIUS * 1.5); // Approx gun length
+            const gunTipOffsetY = Math.sin(player.rotation.z) * (PLAYER_RADIUS * 1.5);
+
+            const startOffset = 0.1; // Small offset from the tip
+            const startX = player.position.x + gunTipOffsetX + Math.cos(player.rotation.z) * startOffset;
+            const startY = player.position.y + gunTipOffsetY + Math.sin(player.rotation.z) * startOffset;
+
+            bullet.position.set(startX, startY, 0.1);
+
+            bullet.userData.velocity = new THREE.Vector3(
+                Math.cos(player.rotation.z) * BULLET_SPEED,
+                Math.sin(player.rotation.z) * BULLET_SPEED,
+                0
+            );
+             // Use a smaller radius for collision detection with the thin bullet
+            bullet.userData.radius = bulletWidth;
+            bullet.userData.lifeTime = 1.5; // Shorter bullet life
+
+            scene.add(bullet);
+            bullets.push(bullet);
+        }
+
+        // --- Enemy Logic ---
+        function scheduleNextEnemySpawn() {
+            const interval = Math.random() * (ENEMY_SPAWN_INTERVAL_MAX - ENEMY_SPAWN_INTERVAL_MIN) + ENEMY_SPAWN_INTERVAL_MIN;
+            nextEnemySpawnTime = clock.getElapsedTime() + interval / 1000 / (1 + level * 0.05) ; // Spawn faster on higher levels
+        }
+
+        function spawnEnemy() {
+            if (trees.length === 0 || enemies.length >= maxEnemiesThisLevel) return;
+
+            const treeIndex = Math.floor(Math.random() * trees.length);
+            const spawnTree = trees[treeIndex];
+
+            // Spawn near the edge of the tree canopy
+            const angle = Math.random() * Math.PI * 2;
+            const spawnDist = spawnTree.userData.radius * (0.8 + Math.random() * 0.4); // Spawn within/near canopy edge
+            const spawnX = spawnTree.position.x + Math.cos(angle) * spawnDist;
+            const spawnY = spawnTree.position.y + Math.sin(angle) * spawnDist;
+
+            const spawnPos = new THREE.Vector3(spawnX, spawnY, 0);
+
+             // Check bounds and collision with ROCKS
+            if (spawnX < MAP_OFFSET + ENEMY_RADIUS || spawnX > MAP_SIZE - MAP_OFFSET - ENEMY_RADIUS ||
+                spawnY < MAP_OFFSET + ENEMY_RADIUS || spawnY > MAP_SIZE - MAP_OFFSET - ENEMY_RADIUS ||
+                checkCollision(spawnPos, ENEMY_RADIUS, obstacles)) {
+                 // Try again soon if spawn point is bad
+                 nextEnemySpawnTime = clock.getElapsedTime() + 0.5; // Try again in 0.5s
+                return;
+            }
+
+            // Create enemy using layered shapes
+            const enemyGroup = new THREE.Group();
+
+             // Base shape (darker red/orange)
+             const baseShape = createBushShape(ENEMY_RADIUS, 7);
+             const baseGeo = new THREE.ShapeGeometry(baseShape);
+             const baseMat = new THREE.MeshBasicMaterial({ color: 0xCC5500 }); // Burnt Orange
+             const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+             baseMesh.position.z = 0.05;
+             enemyGroup.add(baseMesh);
+
+             // Top shape (brighter red/orange)
+             const topShape = createBushShape(ENEMY_RADIUS * 0.7, 5);
+             const topGeo = new THREE.ShapeGeometry(topShape);
+             const topMat = new THREE.MeshBasicMaterial({ color: 0xFF4500 }); // OrangeRed
+             const topMesh = new THREE.Mesh(topGeo, topMat);
+             topMesh.position.z = 0.10;
+             topMesh.rotation.z = Math.random() * 1;
+             enemyGroup.add(topMesh);
+
+
+            // Eyes
+            const eyeSize = ENEMY_RADIUS * 0.18;
+            const eyeGeometry = new THREE.CircleGeometry(eyeSize, 8);
+            const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFF00 }); // Yellow eyes
+
+            const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            leftEye.position.set(-ENEMY_RADIUS * 0.35, ENEMY_RADIUS * 0.1, 0.11);
+            enemyGroup.add(leftEye);
+
+            const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            rightEye.position.set(ENEMY_RADIUS * 0.35, ENEMY_RADIUS * 0.1, 0.11);
+            enemyGroup.add(rightEye);
+
+
+            enemyGroup.position.copy(spawnPos);
+            enemyGroup.userData.radius = ENEMY_RADIUS;
+            scene.add(enemyGroup);
+            enemies.push(enemyGroup);
+
+            scheduleNextEnemySpawn();
+        }
+
+        function updateEnemies(delta) {
+             const effectiveEnemySpeed = ENEMY_SPEED * (1 + level * 0.08); // Enemies get faster with levels
+
+            enemies.forEach(enemy => {
+                const direction = player.position.clone().sub(enemy.position);
+                const distanceToPlayer = direction.length();
+                direction.normalize();
+
+                 // Simple avoidance for other enemies (crude)
+                let avoidance = new THREE.Vector3();
+                 enemies.forEach(other => {
+                     if (enemy === other) return;
+                     const vecToOther = enemy.position.clone().sub(other.position);
+                     const dist = vecToOther.length();
+                     if (dist < ENEMY_RADIUS * 3) { // Check within 3x radius
+                         avoidance.add(vecToOther.normalize().multiplyScalar(1 / (dist + 0.1)));
+                     }
+                 });
+                 
+                // Improved obstacle avoidance
+                let obstacleAvoidance = new THREE.Vector3();
+                
+                // Track if enemy is stuck - initialize once
+                if (!enemy.userData.stuckDetection) {
+                    enemy.userData.stuckDetection = {
+                        lastPosition: enemy.position.clone(),
+                        stuckTime: 0,
+                        lastCheckTime: 0,
+                        clockwise: Math.random() > 0.5
+                    };
+                }
+                
+                // Only check stuck status every few frames to improve performance
+                const now = clock.getElapsedTime();
+                if (now - enemy.userData.stuckDetection.lastCheckTime > 0.1) {  // Check every 100ms
+                    const stuckDist = enemy.position.distanceTo(enemy.userData.stuckDetection.lastPosition);
+                    if (stuckDist < 0.1) {
+                        enemy.userData.stuckDetection.stuckTime += 0.1;
+                    } else {
+                        // Reset stuck timer if moving well
+                        enemy.userData.stuckDetection.stuckTime = Math.max(0, enemy.userData.stuckDetection.stuckTime - 0.1);
+                        enemy.userData.stuckDetection.lastPosition.copy(enemy.position);
+                    }
+                    enemy.userData.stuckDetection.lastCheckTime = now;
+                }
+                
+                // Special pathfinding mode when stuck near obstacles
+                const isStuck = enemy.userData.stuckDetection.stuckTime > 0.5;
+                
+                // Simplified obstacle detection - only check the closest few obstacles
+                let obstacleBlocking = false;
+                let closestObstacle = null;
+                let closestDist = Infinity;
+                
+                // Only check nearby obstacles within a certain range
+                const maxCheckDist = 6 * ENEMY_RADIUS;
+                for (let i = 0; i < obstacles.length && i < 3; i++) {
+                    const obstacle = obstacles[i];
+                    const vecToObstacle = enemy.position.clone().sub(obstacle.position);
+                    const dist = vecToObstacle.length();
+                    
+                    if (dist > maxCheckDist) continue;
+                    
+                    // Find closest obstacle
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        closestObstacle = obstacle;
+                    }
+                    
+                    // Simplified blocking check
+                    const toPlayerDist = enemy.position.distanceTo(player.position);
+                    if (dist < obstacle.userData.radius * 2 && dist < toPlayerDist) {
+                        const playerDir = player.position.clone().sub(enemy.position).normalize();
+                        const obstacleDir = obstacle.position.clone().sub(enemy.position).normalize();
+                        
+                        // If obstacle is roughly between enemy and player
+                        if (playerDir.dot(obstacleDir) < -0.7) {
+                            obstacleBlocking = true;
+                        }
+                    }
+                    
+                    // Regular obstacle avoidance for close obstacles
+                    const detectionRadius = obstacle.userData.radius + ENEMY_RADIUS * 2;
+                    if (dist < detectionRadius) {
+                        // Stronger avoidance force the closer we are
+                        const avoidStrength = (1 - (dist / detectionRadius)) * 2;
+                        obstacleAvoidance.add(vecToObstacle.normalize().multiplyScalar(avoidStrength));
+                    }
+                }
+                
+                // Generate path around obstacles when stuck or blocked
+                if ((isStuck || obstacleBlocking) && closestObstacle) {
+                    // Use a simplified circumnavigation behavior
+                    // Vector from obstacle to enemy
+                    const fromObstacleToEnemy = enemy.position.clone().sub(closestObstacle.position).normalize();
+                    
+                    // Perpendicular vector for circling
+                    const perpVector = new THREE.Vector3();
+                    if (enemy.userData.stuckDetection.clockwise) {
+                        perpVector.set(-fromObstacleToEnemy.y, fromObstacleToEnemy.x, 0);
+                    } else {
+                        perpVector.set(fromObstacleToEnemy.y, -fromObstacleToEnemy.x, 0);
+                    }
+                    
+                    // If stuck for too long, try the opposite direction
+                    if (enemy.userData.stuckDetection.stuckTime > 2.0) {
+                        enemy.userData.stuckDetection.clockwise = !enemy.userData.stuckDetection.clockwise;
+                        enemy.userData.stuckDetection.stuckTime = 0.5;
+                    }
+                    
+                    // Simple combined direction with less vector operations
+                    direction.copy(fromObstacleToEnemy).multiplyScalar(0.5); // Move away component
+                    direction.add(perpVector.multiplyScalar(1.5)); // Circular component
+                    direction.normalize();
+                    
+                    // Increase chase strength when pathfinding
+                    playerChaseStrength = 1.5;
+                } else {
+                    // Normal chase with occasional loss of interest
+                    playerChaseStrength = 1.0;
+                    if (Math.random() < 0.001) { // Lower chance to lose interest
+                        enemy.userData.lostInterest = Math.random() * 2; // Shorter duration
+                    }
+                    
+                    if (enemy.userData.lostInterest > 0) {
+                        enemy.userData.lostInterest -= delta;
+                        playerChaseStrength = 0.2; // Weaker chase when lost interest
+                    }
+                }
+                
+                // Normalize obstacle avoidance
+                if (obstacleAvoidance.lengthSq() > 0) {
+                    obstacleAvoidance.normalize();
+                }
+                
+                // Normalize regular avoidance
+                avoidance.normalize();
+                
+                // Simplified random movement - less costly vector operations
+                const randomAngle = Math.random() * Math.PI * 2;
+                const randomDir = new THREE.Vector3(
+                    Math.cos(randomAngle) * 0.2,
+                    Math.sin(randomAngle) * 0.2,
+                    0
+                );
+
+                // Combine movement forces with weights - fewer operations
+                const finalDirection = new THREE.Vector3();
+                finalDirection.add(direction.multiplyScalar(playerChaseStrength));
+                finalDirection.add(avoidance.multiplyScalar(0.4));
+                
+                // Only apply obstacle avoidance if not in pathfinding mode
+                if (!isStuck && !obstacleBlocking) {
+                    finalDirection.add(obstacleAvoidance.multiplyScalar(0.8));
+                }
+                
+                finalDirection.add(randomDir);
+                
+                if (finalDirection.lengthSq() > 0) {
+                    finalDirection.normalize();
+                }
+                
+                const moveStep = finalDirection.multiplyScalar(effectiveEnemySpeed * delta);
+                const nextPos = enemy.position.clone().add(moveStep);
+
+                // Collision check ONLY with obstacles (rocks)
+                if (!checkCollision(nextPos, ENEMY_RADIUS, obstacles)) {
+                     // Check map bounds (playable area)
+                    if (nextPos.x >= MAP_OFFSET + ENEMY_RADIUS && nextPos.x <= MAP_SIZE - MAP_OFFSET - ENEMY_RADIUS &&
+                        nextPos.y >= MAP_OFFSET + ENEMY_RADIUS && nextPos.y <= MAP_SIZE - MAP_OFFSET - ENEMY_RADIUS) {
+                         enemy.position.copy(nextPos);
+                    }
+                } else {
+                    // If blocked, try sliding along walls
+                    const slideX = enemy.position.clone();
+                    slideX.x = nextPos.x;
+                    
+                    const slideY = enemy.position.clone();
+                    slideY.y = nextPos.y;
+                    
+                    // Try moving only on X axis
+                    if (!checkCollision(slideX, ENEMY_RADIUS, obstacles)) {
+                        enemy.position.copy(slideX);
+                    } 
+                    // Try moving only on Y axis
+                    else if (!checkCollision(slideY, ENEMY_RADIUS, obstacles)) {
+                        enemy.position.copy(slideY);
+                    }
+                }
+            });
+
+            // Check for spawning new enemy
+            if (clock.getElapsedTime() > nextEnemySpawnTime && gameState === 'playing') {
+                spawnEnemy();
+            }
+        }
+
+
+        // --- Update Bullets ---
+        function updateBullets(delta) {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                bullet.position.add(bullet.userData.velocity.clone().multiplyScalar(delta));
+                bullet.userData.lifeTime -= delta;
+
+                // Remove bullet if out of bounds or lifetime expired
+                if (bullet.userData.lifeTime <= 0 ||
+                    bullet.position.x < MAP_OFFSET || bullet.position.x > MAP_SIZE - MAP_OFFSET ||
+                    bullet.position.y < MAP_OFFSET || bullet.position.y > MAP_SIZE - MAP_OFFSET) {
+                    scene.remove(bullet);
+                    bullets.splice(i, 1);
+                    continue;
+                }
+
+                // Check collision with ROCKS
+                for (const obstacle of obstacles) {
+                    if (bullet.position.distanceTo(obstacle.position) < bullet.userData.radius + obstacle.userData.radius) {
+                        scene.remove(bullet);
+                        bullets.splice(i, 1);
+                        // Reproducir sonido de colisión con rocas
+                        playSound('Colision_con_Rocas');
+                        break;
+                    }
+                }
+                
+                // Check if bullet was removed due to rock collision
+                if (i >= bullets.length) continue;
+                
+                // Check collision with ENEMIES
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    if (bullet.position.distanceTo(enemy.position) < bullet.userData.radius + enemy.userData.radius) {
+                        // Remove enemy
+                        scene.remove(enemy);
+                        enemies.splice(j, 1);
+                        
+                        // Remove bullet
+                        scene.remove(bullet);
+                        bullets.splice(i, 1);
+                        
+                        // Reproducir sonido de enemigo eliminado
+                        playSound('Enemigo_Eliminado');
+                        
+                        // Add score
+                        score += 10;
+                        updateUI();
+                        break;
+                    }
+                }
+            }
+        }
+
+        // --- Collision Detection ---
+        function checkCollision(position, radius, targets) {
+            for (const target of targets) {
+                // Ensure target is valid and has necessary properties
+                 if (!target || !target.position || !target.userData || target.userData.radius === undefined) continue;
+                 if (!target.parent && target !== player) continue; // Skip if removed or not player
+
+                 const targetRadius = target.userData.radius;
+                if (position.distanceTo(target.position) < radius + targetRadius) {
+                    return target; // Return the object collided with
+                }
+            }
+            return null; // No collision
+        }
+
+        function handleCollisions(delta) {
+            // --- Player Movement & Obstacle Collision (Rocks Only) ---
+            if (playerVelocity.lengthSq() > 0) {
+                const tentativePos = player.position.clone().add(playerVelocity);
+
+                 // Check playable area boundaries
+                tentativePos.x = Math.max(MAP_OFFSET + PLAYER_RADIUS, Math.min(MAP_SIZE - MAP_OFFSET - PLAYER_RADIUS, tentativePos.x));
+                tentativePos.y = Math.max(MAP_OFFSET + PLAYER_RADIUS, Math.min(MAP_SIZE - MAP_OFFSET - PLAYER_RADIUS, tentativePos.y));
+
+                // Check against obstacles (rocks) with sliding
+                 const finalPos = player.position.clone();
+                 let collisionX = false;
+                 let collisionY = false;
+
+                 // Try moving X
+                finalPos.x = tentativePos.x;
+                 if (checkCollision(finalPos, PLAYER_RADIUS, obstacles)) {
+                    finalPos.x = player.position.x; // Revert X
+                    collisionX = true;
+                 }
+
+                 // Try moving Y
+                finalPos.y = tentativePos.y;
+                 if (checkCollision(finalPos, PLAYER_RADIUS, obstacles)) {
+                    finalPos.y = player.position.y; // Revert Y
+                     collisionY = true;
+                 }
+
+                 // If collided only on one axis, try moving along the other axis again
+                 if(collisionX && !collisionY) {
+                      finalPos.y = tentativePos.y; // Allow Y movement
+                      if (checkCollision(finalPos, PLAYER_RADIUS, obstacles)){ // Double check after Y move
+                           finalPos.y = player.position.y;
+                      }
+                 } else if (collisionY && !collisionX) {
+                      finalPos.x = tentativePos.x; // Allow X movement
+                       if (checkCollision(finalPos, PLAYER_RADIUS, obstacles)){ // Double check after X move
+                           finalPos.x = player.position.x;
+                      }
+                 }
+
+
+                player.position.copy(finalPos);
+            }
+
+
+            // --- Player vs. Ammunition ---
+            for (let i = ammunition.length - 1; i >= 0; i--) {
+                const ammo = ammunition[i];
+                if (player.position.distanceTo(ammo.position) < PLAYER_RADIUS + ammo.userData.radius) {
+                    if (reloads < MAX_RELOADS) {
+                        reloads++;
+                        // Reproducir sonido de recoger munición
+                        playSound('Recoger_Municion');
+                        updateUI();
+                    }
+                    scene.remove(ammo);
+                    ammunition.splice(i, 1);
+                }
+            }
+
+            // --- Player vs. Enemies ---
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                if (player.position.distanceTo(enemy.position) < PLAYER_RADIUS * 0.8 + enemy.userData.radius * 0.8) { // Reduced radii check for closer contact
+                    lives--;
+                    // Activar efecto de daño
+                    showDamageEffect();
+                    // Add player hit sound?
+                    scene.remove(enemy);
+                    enemies.splice(i, 1);
+                    updateUI();
+                    if (lives <= 0) {
+                        gameOver();
+                        return;
+                    }
+                    // Add brief invulnerability/knockback here if desired
+                    break;
+                }
+            }
+
+            // --- Player vs. Exits ---
+            for (const exit of exits) {
+                // More precise Box intersection using player radius
+                const playerMinX = player.position.x - PLAYER_RADIUS;
+                const playerMaxX = player.position.x + PLAYER_RADIUS;
+                const playerMinY = player.position.y - PLAYER_RADIUS;
+                const playerMaxY = player.position.y + PLAYER_RADIUS;
+
+                 const exitHalfWidth = exit.userData.width / 2;
+                 const exitHalfHeight = exit.userData.height / 2;
+                 const exitMinX = exit.position.x - exitHalfWidth;
+                 const exitMaxX = exit.position.x + exitHalfWidth;
+                 const exitMinY = exit.position.y - exitHalfHeight;
+                 const exitMaxY = exit.position.y + exitHalfHeight;
+
+
+                 if (playerMaxX > exitMinX && playerMinX < exitMaxX && playerMaxY > exitMinY && playerMinY < exitMaxY) {
+                    levelComplete();
+                    return;
+                }
+            }
+        }
+
+        // --- Game State Changes ---
+        function gameOver() {
+            gameState = 'gameOver';
+            messageUI.innerHTML = `¡Juego Terminado!<br>Puntos: ${score}<br><small style="font-size: 0.5em;">Recarga la página para jugar de nuevo</small>`;
+            messageUI.style.display = 'block';
+            
+            // Reproducir sonido de Game Over
+            playSound('Game_Over');
+        }
+
+        function levelComplete() {
+            gameState = 'levelComplete';
+            const levelBonus = 50 * level;
+            score += levelBonus;
+            lives = Math.min(lives + 1, MAX_LIVES);
+            level++;
+
+            messageUI.innerHTML = `¡Nivel ${level - 1} Completado!<br>+${levelBonus} Puntos de Bonificación<br>Iniciando Nivel ${level}...`;
+            messageUI.style.display = 'block';
+            
+            // Reproducir sonido de nivel completado
+            playSound('Nivel_Completado');
+
+            updateUI(); // Update UI before delay
+
+            setTimeout(() => {
+                messageUI.style.display = 'none';
+                generateMap(); // Generates new map layout
+                resetPlayerState(); // Resets player position
+                gameState = 'playing'; // Resume playing state
+            }, 3500); // 3.5 second delay
+        }
+
+        // --- UI Update ---
+        function updateUI() {
+            scoreUI.textContent = `Puntos: ${score}`;
+            livesUI.textContent = `Vidas: ${lives}`;
+            shotsUI.textContent = `Disparos: ${currentShots}`;
+            reloadsUI.textContent = `Recargas: ${reloads}`;
+            levelUI.textContent = `Nivel: ${level}`;
+        }
+
+        // --- Game Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = Math.min(clock.getDelta(), 0.05); // Cap delta time to prevent large jumps
+
+            if (gameState === 'playing') {
+                handlePlayerInput(delta);
+                updateEnemies(delta);
+                updateBullets(delta);
+                handleCollisions(delta);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // --- Start the game ---
+        init();
+
+    </script>
+</body>
+</html>
