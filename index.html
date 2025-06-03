@@ -30,6 +30,12 @@
     
     <style>
         body { margin: 0; overflow: hidden; background-color: #2A4A2A; /* Slightly darker green */ }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
         canvas { display: block; }
         #ui {
             position: absolute;
@@ -265,6 +271,20 @@
             line-height: 50px;
             text-align: center;
         }
+
+        /* Smaller UI on narrow screens */
+        @media (max-width: 768px) {
+            #controls, #legend {
+                font-size: 0.8em;
+                padding: 8px 10px;
+                min-width: 150px;
+            }
+            .mobile-btn {
+                width: 40px;
+                height: 40px;
+                line-height: 40px;
+            }
+        }
     </style>
     
     <!-- Preload Audio Files -->
@@ -279,6 +299,7 @@
     <audio id="audio-pasos" src="sounds/Pasos_del_Jugador.m4a" preload="auto"></audio>
 </head>
 <body>
+    <div id="game-container">
     <div id="ui">
         <div id="score">Puntos: 0</div>
         <div id="lives">Vidas: 3</div>
@@ -324,6 +345,7 @@
     </div>
     
     <div id="damage-overlay"></div>
+    </div> <!-- game-container -->
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
@@ -388,6 +410,7 @@
         let exits = []; // Meshes
 
         // --- UI Elements ---
+        const gameContainer = document.getElementById('game-container');
         const scoreUI = document.getElementById('score');
         const livesUI = document.getElementById('lives');
         const shotsUI = document.getElementById('shots');
@@ -479,7 +502,7 @@
             // Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
+            gameContainer.appendChild(renderer.domElement);
 
             // Create map border first (visually behind other objects)
             createMapBorder();
