@@ -592,7 +592,7 @@
             const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
             trunk.position.z = TREE_TRUNK_HEIGHT / 2 - 0.1; // Positioned lower
             trunk.rotation.x = Math.PI / 2; // Lay flat along Z axis conceptually for top-down view cylinder
-            treeGroup.add(trunk); // Add but don't add to obstacles
+            treeGroup.add(trunk); // Add trunk to the tree but don't register it as an obstacle
 
             treeGroup.userData.radius = radius; // Use full radius for spawn checks
             treeGroup.userData.type = 'tree';
