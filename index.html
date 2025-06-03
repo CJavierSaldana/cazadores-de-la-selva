@@ -1257,6 +1257,31 @@
                     continue;
                 }
 
+                // Check collision with ENEMIES first
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    if (bullet.position.distanceTo(enemy.position) < bullet.userData.radius + enemy.userData.radius) {
+                        // Remove enemy
+                        scene.remove(enemy);
+                        enemies.splice(j, 1);
+
+                        // Remove bullet
+                        scene.remove(bullet);
+                        bullets.splice(i, 1);
+
+                        // Reproducir sonido de enemigo eliminado
+                        playSound('Enemigo_Eliminado');
+
+                        // Add score
+                        score += 10;
+                        updateUI();
+                        break;
+                    }
+                }
+
+                // Check if bullet was removed due to enemy collision
+                if (i >= bullets.length) continue;
+
                 // Check collision with ROCKS
                 for (const obstacle of obstacles) {
                     if (bullet.position.distanceTo(obstacle.position) < bullet.userData.radius + obstacle.userData.radius) {
@@ -1264,31 +1289,6 @@
                         bullets.splice(i, 1);
                         // Reproducir sonido de colisión con rocas
                         playSound('Colision_con_Rocas');
-                        break;
-                    }
-                }
-                
-                // Check if bullet was removed due to rock collision
-                if (i >= bullets.length) continue;
-                
-                // Check collision with ENEMIES
-                for (let j = enemies.length - 1; j >= 0; j--) {
-                    const enemy = enemies[j];
-                    if (bullet.position.distanceTo(enemy.position) < bullet.userData.radius + enemy.userData.radius) {
-                        // Remove enemy
-                        scene.remove(enemy);
-                        enemies.splice(j, 1);
-                        
-                        // Remove bullet
-                        scene.remove(bullet);
-                        bullets.splice(i, 1);
-                        
-                        // Reproducir sonido de enemigo eliminado
-                        playSound('Enemigo_Eliminado');
-                        
-                        // Add score
-                        score += 10;
-                        updateUI();
                         break;
                     }
                 }
