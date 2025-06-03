@@ -30,6 +30,12 @@
     
     <style>
         body { margin: 0; overflow: hidden; background-color: #2A4A2A; /* Slightly darker green */ }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
         canvas { display: block; }
         #ui {
             position: absolute;
@@ -219,6 +225,67 @@
                 transform: translate3d(6px, 0, 0);
             }
         }
+
+        /* --- Mobile Controls --- */
+        #mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            display: none;
+            z-index: 5;
+            pointer-events: none; /* allow buttons to handle events */
+        }
+        #mobile-controls .mobile-group {
+            pointer-events: auto;
+        }
+        #mobile-dir {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        #mobile-dir .row {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+        }
+        #mobile-act {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            display: flex;
+            gap: 10px;
+        }
+        .mobile-btn {
+            width: 50px;
+            height: 50px;
+            background-color: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid #fff;
+            border-radius: 6px;
+            font-size: 1.2em;
+            user-select: none;
+            touch-action: none;
+            line-height: 50px;
+            text-align: center;
+        }
+
+        /* Smaller UI on narrow screens */
+        @media (max-width: 768px) {
+            #controls, #legend {
+                font-size: 0.8em;
+                padding: 8px 10px;
+                min-width: 150px;
+            }
+            .mobile-btn {
+                width: 40px;
+                height: 40px;
+                line-height: 40px;
+            }
+        }
     </style>
     
     <!-- Preload Audio Files -->
@@ -233,6 +300,7 @@
     <audio id="audio-pasos" src="sounds/Pasos_del_Jugador.m4a" preload="auto"></audio>
 </head>
 <body>
+    <div id="game-container">
     <div id="ui">
         <div id="score">Puntos: 0</div>
         <div id="lives">Vidas: 3</div>
@@ -256,9 +324,29 @@
         <div><span class="legend-icon ammo"></span> Munición</div>
         <div><span class="legend-icon rock"></span> Roca (obstáculo)</div>
         <div><span class="legend-icon exit"></span> Salida</div>
+        <h3>Controles Móvil</h3>
+        <div>Utiliza los botones en pantalla para moverte, rotar, disparar y recargar</div>
+    </div>
+
+    <div id="mobile-controls">
+        <div id="mobile-dir" class="mobile-group">
+            <div class="row">
+                <div id="btn-up" class="mobile-btn">↑</div>
+            </div>
+            <div class="row">
+                <div id="btn-left" class="mobile-btn">←</div>
+                <div id="btn-down" class="mobile-btn">↓</div>
+                <div id="btn-right" class="mobile-btn">→</div>
+            </div>
+        </div>
+        <div id="mobile-act" class="mobile-group">
+            <div id="btn-fire" class="mobile-btn">F</div>
+            <div id="btn-reload" class="mobile-btn">R</div>
+        </div>
     </div>
     
     <div id="damage-overlay"></div>
+    </div> <!-- game-container -->
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
@@ -323,6 +411,7 @@
         let exits = []; // Meshes
 
         // --- UI Elements ---
+        const gameContainer = document.getElementById('game-container');
         const scoreUI = document.getElementById('score');
         const livesUI = document.getElementById('lives');
         const shotsUI = document.getElementById('shots');
@@ -414,7 +503,7 @@
             // Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
+            gameContainer.appendChild(renderer.domElement);
 
             // Create map border first (visually behind other objects)
             createMapBorder();
@@ -431,6 +520,9 @@
             window.addEventListener('keydown', onKeyDown);
             window.addEventListener('keyup', onKeyUp);
             window.addEventListener('resize', onWindowResize);
+
+            // Setup mobile buttons if applicable
+            setupMobileControls();
 
             // Inicializar audio inmediatamente
             initAudio();
@@ -839,6 +931,34 @@
             camera.bottom = -viewSize / 2;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Mobile Controls Setup ---
+        function addButtonControl(id, key) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const start = (e) => { e.preventDefault(); keys[key] = true; };
+            const end = (e) => { e.preventDefault(); keys[key] = false; };
+            el.addEventListener('touchstart', start);
+            el.addEventListener('touchend', end);
+            el.addEventListener('touchcancel', end);
+            el.addEventListener('mousedown', start);
+            el.addEventListener('mouseup', end);
+            el.addEventListener('mouseleave', end);
+        }
+
+        function setupMobileControls() {
+            if (!/Mobi|Android/i.test(navigator.userAgent)) return;
+            const container = document.getElementById('mobile-controls');
+            if (!container) return;
+            container.style.display = 'block';
+
+            addButtonControl('btn-up', 'ArrowUp');
+            addButtonControl('btn-down', 'ArrowDown');
+            addButtonControl('btn-left', 'ArrowLeft');
+            addButtonControl('btn-right', 'ArrowRight');
+            addButtonControl('btn-fire', 'Space');
+            addButtonControl('btn-reload', 'KeyR');
         }
 
         // --- Handle Player Input ---
