@@ -276,7 +276,9 @@
         const TREE_LEAVES_RADIUS = 0.9; // Larger leaves canopy
         const EXIT_WIDTH = 1.5;
         const EXIT_HEIGHT = 0.5;
-        const BULLET_RADIUS = 0.1;
+        const BULLET_LENGTH = 0.3;
+        const BULLET_WIDTH = 0.05;
+        const BULLET_COLLISION_RADIUS = BULLET_LENGTH / 2; // Ensure bullet hits obstacles
         const BULLET_SPEED = 18; // Faster bullets
         const PLAYER_SPEED = 2.5; // Adjusted speed
         const PLAYER_ROTATION_SPEED = Math.PI * 1.7; // Slightly faster rotation
@@ -938,9 +940,7 @@
 
         function shootBullet() {
              // Use a thin rectangle for the bullet visual
-            const bulletLength = 0.3;
-            const bulletWidth = 0.05;
-            const bulletGeometry = new THREE.PlaneGeometry(bulletLength, bulletWidth);
+            const bulletGeometry = new THREE.PlaneGeometry(BULLET_LENGTH, BULLET_WIDTH);
             const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFF99 }); // Pale Yellow
             const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
 
@@ -963,8 +963,8 @@
                 Math.sin(player.rotation.z) * BULLET_SPEED,
                 0
             );
-             // Use a smaller radius for collision detection with the thin bullet
-            bullet.userData.radius = bulletWidth;
+            // Use length-based radius for more reliable collision detection
+            bullet.userData.radius = BULLET_COLLISION_RADIUS;
             bullet.userData.lifeTime = 1.5; // Shorter bullet life
 
             scene.add(bullet);
@@ -1049,7 +1049,11 @@
             enemies.forEach(enemy => {
                 const direction = player.position.clone().sub(enemy.position);
                 const distanceToPlayer = direction.length();
-                direction.normalize();
+                if (distanceToPlayer > 0) {
+                    direction.normalize();
+                } else {
+                    direction.set(0, 0, 0);
+                }
 
                  // Simple avoidance for other enemies (crude)
                 let avoidance = new THREE.Vector3();
@@ -1057,7 +1061,7 @@
                      if (enemy === other) return;
                      const vecToOther = enemy.position.clone().sub(other.position);
                      const dist = vecToOther.length();
-                     if (dist < ENEMY_RADIUS * 3) { // Check within 3x radius
+                     if (dist > 0 && dist < ENEMY_RADIUS * 3) { // Check within 3x radius
                          avoidance.add(vecToOther.normalize().multiplyScalar(1 / (dist + 0.1)));
                      }
                  });
@@ -1126,7 +1130,7 @@
                     
                     // Regular obstacle avoidance for close obstacles
                     const detectionRadius = obstacle.userData.radius + ENEMY_RADIUS * 2;
-                    if (dist < detectionRadius) {
+                    if (dist > 0 && dist < detectionRadius) {
                         // Stronger avoidance force the closer we are
                         const avoidStrength = (1 - (dist / detectionRadius)) * 2;
                         obstacleAvoidance.add(vecToObstacle.normalize().multiplyScalar(avoidStrength));
@@ -1137,7 +1141,12 @@
                 if ((isStuck || obstacleBlocking) && closestObstacle) {
                     // Use a simplified circumnavigation behavior
                     // Vector from obstacle to enemy
-                    const fromObstacleToEnemy = enemy.position.clone().sub(closestObstacle.position).normalize();
+                    const fromObstacleToEnemy = enemy.position.clone().sub(closestObstacle.position);
+                    if (fromObstacleToEnemy.lengthSq() > 0) {
+                        fromObstacleToEnemy.normalize();
+                    } else {
+                        fromObstacleToEnemy.set(0, 0, 0);
+                    }
                     
                     // Perpendicular vector for circling
                     const perpVector = new THREE.Vector3();
@@ -1156,7 +1165,9 @@
                     // Simple combined direction with less vector operations
                     direction.copy(fromObstacleToEnemy).multiplyScalar(0.5); // Move away component
                     direction.add(perpVector.multiplyScalar(1.5)); // Circular component
-                    direction.normalize();
+                    if (direction.lengthSq() > 0) {
+                        direction.normalize();
+                    }
                     
                     // Increase chase strength when pathfinding
                     playerChaseStrength = 1.5;
