@@ -1257,6 +1257,7 @@
                     continue;
                 }
 
+                let bulletRemoved = false;
                 // Check collision with ENEMIES first
                 for (let j = enemies.length - 1; j >= 0; j--) {
                     const enemy = enemies[j];
@@ -1275,12 +1276,12 @@
                         // Add score
                         score += 10;
                         updateUI();
+                        bulletRemoved = true;
                         break;
                     }
                 }
 
-                // Check if bullet was removed due to enemy collision
-                if (i >= bullets.length) continue;
+                if (bulletRemoved) continue;
 
                 // Check collision with ROCKS
                 for (const obstacle of obstacles) {
@@ -1289,6 +1290,7 @@
                         bullets.splice(i, 1);
                         // Reproducir sonido de colisión con rocas
                         playSound('Colision_con_Rocas');
+                        bulletRemoved = true;
                         break;
                     }
                 }
