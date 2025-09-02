@@ -482,7 +482,46 @@
         function init() {
             // Scene
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(GROUND_COLOR); // Use ground color
+            // El color de fondo ahora lo proporciona el plano del suelo.
+
+            // --- Lighting ---
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Luz ambiental
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+            directionalLight.position.set(15, 25, 20); // Posición de la luz (desde arriba y un lado)
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+            // La luz direccional debe apuntar al centro del mapa
+            directionalLight.target.position.set(MAP_SIZE / 2, MAP_SIZE / 2, 0);
+            directionalLight.target.updateMatrixWorld();
+            scene.add(directionalLight.target);
+
+            // Ayudante para depurar la cámara de sombras (descomentar si es necesario)
+            // const shadowHelper = new THREE.CameraHelper(directionalLight.shadow.camera);
+            // scene.add(shadowHelper);
+
+            // Configuración de la calidad y área de las sombras
+            directionalLight.shadow.mapSize.width = 2048; // Resolución de la sombra
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 60;
+
+            directionalLight.shadow.bias = -0.0001; // Ayuda a prevenir el "shadow acne"
+            const shadowCamArea = MAP_SIZE; // Reducir el área para mayor precisión
+            directionalLight.shadow.camera.left = -shadowCamArea;
+            directionalLight.shadow.camera.right = shadowCamArea;
+            directionalLight.shadow.camera.top = shadowCamArea;
+            directionalLight.shadow.camera.bottom = -shadowCamArea;
+
+            // --- Ground Plane ---
+            const groundGeometry = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: GROUND_COLOR });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.position.set(MAP_SIZE / 2, MAP_SIZE / 2, -0.01); // Ligeramente debajo
+            ground.receiveShadow = true;
+            scene.add(ground);
 
             // Clock
             clock = new THREE.Clock();
@@ -503,6 +542,8 @@
             // Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true; // Habilitar sombras
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Opcional: para sombras más suaves
             gameContainer.appendChild(renderer.domElement);
 
             // Create map border first (visually behind other objects)
@@ -538,14 +579,14 @@
             // Body (Circle) - Tan color like image
             const bodyRadius = PLAYER_RADIUS * 0.7;
             const bodyGeometry = new THREE.CircleGeometry(bodyRadius, 16);
-            const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0xD2B48C }); // Tan
+            const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0xD2B48C }); // Tan
             const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
             playerGroup.add(body);
 
             // Head (Small Circle) - Brown color
              const headRadius = PLAYER_RADIUS * 0.4;
              const headGeometry = new THREE.CircleGeometry(headRadius, 12);
-             const headMaterial = new THREE.MeshBasicMaterial({ color: 0x8B4513 }); // Brown
+             const headMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 }); // Brown
              const head = new THREE.Mesh(headGeometry, headMaterial);
              head.position.y = bodyRadius * 0.6; // Position slightly above body center
              head.position.z = 0.01;
@@ -556,7 +597,7 @@
             const gunLength = PLAYER_RADIUS * 1.5;
             const gunWidth = PLAYER_RADIUS * 0.3;
             const gunGeometry = new THREE.PlaneGeometry(gunLength, gunWidth);
-            const gunMaterial = new THREE.MeshBasicMaterial({ color: 0x222222 }); // Very dark gray
+            const gunMaterial = new THREE.MeshLambertMaterial({ color: 0x222222 }); // Very dark gray
             const gun = new THREE.Mesh(gunGeometry, gunMaterial);
             // Position gun extending forward from the body center
             gun.position.x = gunLength / 2;
@@ -565,6 +606,14 @@
 
             playerGroup.userData.radius = PLAYER_RADIUS; // Keep original collision radius
             playerGroup.rotation.order = 'ZYX';
+
+            // Habilitar sombras para todas las mallas del grupo
+            playerGroup.traverse(function(node) {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                }
+            });
+
             return playerGroup;
         }
 
@@ -573,7 +622,7 @@
         function createMapBorder() {
             const borderGeometryH = new THREE.BoxGeometry(MAP_SIZE, BORDER_THICKNESS, 0.2);
             const borderGeometryV = new THREE.BoxGeometry(BORDER_THICKNESS, MAP_SIZE - 2 * BORDER_THICKNESS, 0.2); // Adjust vertical size
-            const borderMaterial = new THREE.MeshBasicMaterial({ color: BORDER_COLOR });
+            const borderMaterial = new THREE.MeshLambertMaterial({ color: BORDER_COLOR });
 
             // Top
             const topBorder = new THREE.Mesh(borderGeometryH, borderMaterial);
@@ -655,7 +704,7 @@
             // 1. Base Bush Shape (darker green)
             const baseBushShape = createBushShape(radius, 10);
             const baseBushGeometry = new THREE.ShapeGeometry(baseBushShape);
-            const baseBushMaterial = new THREE.MeshBasicMaterial({ color: 0x006400 }); // DarkGreen
+            const baseBushMaterial = new THREE.MeshLambertMaterial({ color: 0x006400 }); // DarkGreen
             const baseBush = new THREE.Mesh(baseBushGeometry, baseBushMaterial);
             baseBush.position.z = 0.05; // Base layer
             treeGroup.add(baseBush);
@@ -664,7 +713,7 @@
              const midRadius = radius * 0.85;
              const midBushShape = createBushShape(midRadius, 8);
              const midBushGeometry = new THREE.ShapeGeometry(midBushShape);
-             const midBushMaterial = new THREE.MeshBasicMaterial({ color: 0x228B22 }); // ForestGreen
+             const midBushMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 }); // ForestGreen
              const midBush = new THREE.Mesh(midBushGeometry, midBushMaterial);
              midBush.position.z = 0.10; // Middle layer
              midBush.rotation.z = Math.random() * 0.5; // Slight rotation
@@ -674,7 +723,7 @@
              const topRadius = radius * 0.65;
              const topBushShape = createBushShape(topRadius, 6);
              const topBushGeometry = new THREE.ShapeGeometry(topBushShape);
-             const topBushMaterial = new THREE.MeshBasicMaterial({ color: 0x55AE3A }); // Lighter Olive Green
+             const topBushMaterial = new THREE.MeshLambertMaterial({ color: 0x55AE3A }); // Lighter Olive Green
              const topBush = new THREE.Mesh(topBushGeometry, topBushMaterial);
              topBush.position.z = 0.15; // Top layer
              topBush.rotation.z = Math.random() * 1.0; // More rotation
@@ -682,7 +731,7 @@
 
             // Add simple trunk (mostly hidden)
             const trunkGeometry = new THREE.CylinderGeometry(TREE_TRUNK_WIDTH * 0.5, TREE_TRUNK_WIDTH * 0.7, TREE_TRUNK_HEIGHT, 8);
-            const trunkMaterial = new THREE.MeshBasicMaterial({ color: 0x5C3317 }); // Darker Brown
+            const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x5C3317 }); // Darker Brown
             const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
             trunk.position.z = TREE_TRUNK_HEIGHT / 2 - 0.1; // Positioned lower
             trunk.rotation.x = Math.PI / 2; // Lay flat along Z axis conceptually for top-down view cylinder
@@ -690,6 +739,15 @@
 
             treeGroup.userData.radius = radius; // Use full radius for spawn checks
             treeGroup.userData.type = 'tree';
+
+            treeGroup.traverse(function(node) {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    // Los árboles no necesitan recibir sombras de sí mismos
+                    node.receiveShadow = false;
+                }
+            });
+
             return treeGroup;
         }
 
@@ -699,7 +757,7 @@
             // 1. Base Rock Shape (darker gray/brown)
             const baseRockShape = createRockShape(size);
             const baseRockGeometry = new THREE.ShapeGeometry(baseRockShape);
-            const baseRockMaterial = new THREE.MeshBasicMaterial({ color: 0x696969 }); // DimGray
+            const baseRockMaterial = new THREE.MeshLambertMaterial({ color: 0x696969 }); // DimGray
             const baseRock = new THREE.Mesh(baseRockGeometry, baseRockMaterial);
             baseRock.rotation.z = Math.random() * Math.PI * 2;
             baseRock.position.z = 0.05;
@@ -711,7 +769,7 @@
                 const detailSize = size * (0.3 + Math.random() * 0.3); // Smaller details
                 const detailShape = createRockShape(detailSize);
                 const detailGeometry = new THREE.ShapeGeometry(detailShape);
-                const detailMaterial = new THREE.MeshBasicMaterial({ color: 0xA9A9A9 }); // DarkGray (lighter)
+                const detailMaterial = new THREE.MeshLambertMaterial({ color: 0xA9A9A9 }); // DarkGray (lighter)
                 const detail = new THREE.Mesh(detailGeometry, detailMaterial);
 
                 // Position randomly on top of the base rock
@@ -727,6 +785,13 @@
                 radius: size * 0.5, // Approximate radius for collision
                 type: 'rock'
             };
+
+            rockGroup.traverse(function(node) {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                }
+            });
+
             return rockGroup;
         }
 
@@ -763,7 +828,7 @@
             for (let i = 0; i < numExits; i++) {
                 const posData = potentialExitPositions[i];
                 const exitGeometry = new THREE.PlaneGeometry(EXIT_WIDTH, EXIT_HEIGHT); // Use PlaneGeometry
-                const exitMaterial = new THREE.MeshBasicMaterial({ color: 0x005FFF, transparent: true, opacity: 0.8 }); // Brighter Blue, slightly transparent
+                const exitMaterial = new THREE.MeshLambertMaterial({ color: 0x005FFF, transparent: true, opacity: 0.8 }); // Brighter Blue, slightly transparent
                 const exit = new THREE.Mesh(exitGeometry, exitMaterial);
                 exit.position.set(posData.x, posData.y, 0.01); // Slightly above ground
                 exit.rotation.z = posData.rotation;
@@ -844,14 +909,14 @@
                 
                 // Brass base of shotgun shell
                 const baseGeometry = new THREE.CylinderGeometry(AMMO_RADIUS * 0.8, AMMO_RADIUS * 0.8, AMMO_RADIUS * 0.7, 12);
-                const baseMaterial = new THREE.MeshBasicMaterial({ color: 0xD4AF37 }); // Brass color
+                const baseMaterial = new THREE.MeshLambertMaterial({ color: 0xD4AF37 }); // Brass color
                 const base = new THREE.Mesh(baseGeometry, baseMaterial);
                 base.position.y = -AMMO_RADIUS * 0.9; // Position at bottom of shell
                 ammoGroup.add(base);
                 
                 // Red body of shotgun shell
                 const bodyGeometry = new THREE.CylinderGeometry(AMMO_RADIUS * 0.75, AMMO_RADIUS * 0.75, AMMO_RADIUS * 1.8, 12);
-                const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0xCC0000 }); // Red color
+                const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0xCC0000 }); // Red color
                 const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
                 body.position.y = AMMO_RADIUS * 0.05; // Position above base
                 ammoGroup.add(body);
@@ -860,6 +925,13 @@
                 ammoGroup.rotation.x = Math.PI / 2; // Stand upright
                 ammoGroup.position.set(pos.x, pos.y, AMMO_RADIUS * 1.25);
                 ammoGroup.userData.radius = AMMO_RADIUS * 1.5; // Larger pickup radius
+
+                ammoGroup.traverse(function(node) {
+                    if (node.isMesh) {
+                        node.castShadow = true;
+                    }
+                });
+
                 scene.add(ammoGroup);
                 ammunition.push(ammoGroup);
             }
@@ -1061,8 +1133,9 @@
         function shootBullet() {
              // Use a thin rectangle for the bullet visual
             const bulletGeometry = new THREE.PlaneGeometry(BULLET_LENGTH, BULLET_WIDTH);
-            const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFF99 }); // Pale Yellow
+            const bulletMaterial = new THREE.MeshLambertMaterial({ color: 0xFFFF00 }); // Bright Yellow
             const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+            bullet.castShadow = true;
 
             // Align bullet rotation with player rotation
             bullet.rotation.z = player.rotation.z;
@@ -1126,7 +1199,7 @@
              // Base shape (darker red/orange)
              const baseShape = createBushShape(ENEMY_RADIUS, 7);
              const baseGeo = new THREE.ShapeGeometry(baseShape);
-             const baseMat = new THREE.MeshBasicMaterial({ color: 0xCC5500 }); // Burnt Orange
+             const baseMat = new THREE.MeshLambertMaterial({ color: 0xCC5500 }); // Burnt Orange
              const baseMesh = new THREE.Mesh(baseGeo, baseMat);
              baseMesh.position.z = 0.05;
              enemyGroup.add(baseMesh);
@@ -1134,7 +1207,7 @@
              // Top shape (brighter red/orange)
              const topShape = createBushShape(ENEMY_RADIUS * 0.7, 5);
              const topGeo = new THREE.ShapeGeometry(topShape);
-             const topMat = new THREE.MeshBasicMaterial({ color: 0xFF4500 }); // OrangeRed
+             const topMat = new THREE.MeshLambertMaterial({ color: 0xFF4500 }); // OrangeRed
              const topMesh = new THREE.Mesh(topGeo, topMat);
              topMesh.position.z = 0.10;
              topMesh.rotation.z = Math.random() * 1;
@@ -1144,7 +1217,7 @@
             // Eyes
             const eyeSize = ENEMY_RADIUS * 0.18;
             const eyeGeometry = new THREE.CircleGeometry(eyeSize, 8);
-            const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFF00 }); // Yellow eyes
+            const eyeMaterial = new THREE.MeshLambertMaterial({ color: 0xFFFF00, emissive: 0xFFFF00 }); // Yellow eyes that glow
 
             const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
             leftEye.position.set(-ENEMY_RADIUS * 0.35, ENEMY_RADIUS * 0.1, 0.11);
@@ -1157,6 +1230,13 @@
 
             enemyGroup.position.copy(spawnPos);
             enemyGroup.userData.radius = ENEMY_RADIUS;
+
+            enemyGroup.traverse(function(node) {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                }
+            });
+
             scene.add(enemyGroup);
             enemies.push(enemyGroup);
 
